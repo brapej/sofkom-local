@@ -1,3 +1,5 @@
+package edu.raf.sofkom.localstorage;
+
 import edu.raf.sofkom.FileStorage;
 import edu.raf.sofkom.NoUserException;
 import edu.raf.sofkom.PrivilegeException;
@@ -213,7 +215,7 @@ public class LocalStorage extends FileStorage  implements Serializable  {
 
     public static void main(String[] args) throws NoUserException, PrivilegeException, IOException, ClassNotFoundException {
 
-        LocalStorage fs = /*new LocalStorage();*/ new LocalStorage("mika", "mikic");
+        LocalStorage fs = /*new edu.raf.sofkom.local.LocalStorage();*/ new LocalStorage("mika", "mikic");
         try {
             if(!Files.exists(Paths.get(System.getProperty("user.home")  ,"Desktop","sofkom-storage"))){
             fs.init(System.getProperty("user.home") + FileSystems.getDefault().getSeparator() + "Desktop");
