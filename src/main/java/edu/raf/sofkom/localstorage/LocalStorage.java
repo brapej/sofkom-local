@@ -29,10 +29,12 @@ public class LocalStorage extends FileStorage  implements Serializable  {
         Path storagePath = path.resolve("sofkom-storage");
         Path downloadsPath = Paths.get(System.getProperty("user.home"),"storage-downloads");
 
+        if(Files.exists(storagePath) || Files.exists(downloadsPath) ){
+            return false;
+        }
+
         try {
-            if(Files.exists(storagePath)){
-                return false;
-            }
+
             Files.createDirectory(storagePath);
             setPathToStorage(storagePath.toString()/**/);
         } catch (IOException e) {
