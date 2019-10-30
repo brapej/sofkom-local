@@ -21,6 +21,8 @@ public class LocalStorage extends FileStorage  implements Serializable  {
     public LocalStorage(String userName,String password) {
         super(userName,password);
     }
+
+
     @Override
     public boolean init(String pathToStorageStr) throws FileAlreadyExistsException {
         Path path = Paths.get(pathToStorageStr);
@@ -38,6 +40,9 @@ public class LocalStorage extends FileStorage  implements Serializable  {
         }
 
         try {
+            if(Files.exists(downloadsPath)){
+                return false;
+            }
             Files.createDirectory(downloadsPath);
             setPathToDownloads(downloadsPath.toString()/**/);
 
@@ -212,35 +217,6 @@ public class LocalStorage extends FileStorage  implements Serializable  {
         stateSave();
     }
 
-
-    public static void main(String[] args) throws NoUserException, PrivilegeException, IOException, ClassNotFoundException {
-
-        LocalStorage fs = /*new edu.raf.sofkom.local.LocalStorage();*/ new LocalStorage("mika", "mikic");
-        try {
-            if(!Files.exists(Paths.get(System.getProperty("user.home")  ,"Desktop","sofkom-storage"))){
-            fs.init(System.getProperty("user.home") + FileSystems.getDefault().getSeparator() + "Desktop");
-            fs.stateSave();
-            }else
-           fs= fs.stateLoad(System.getProperty("user.home")+File.separator+"Desktop"+File.separator+"sofkom-storage"+File.separator+"state.txt");
-        } catch (IOException e) {
-            System.err.println("Storage exists at specified location.");
-        }
-
-        fs.setCurrentUser(new User("Milanka","cao"));
-        System.out.println(fs.getCurrentUser().getUserName());
-        fs = fs.stateLoad(System.getProperty("user.home")+File.separator+"Desktop"+File.separator+"sofkom-storage"+File.separator+"state.txt");
-        System.out.println(fs.getCurrentUser().getUserName());
-        fs.toString();
-
-
-
-
-            fs.store(fs.getPathToStorage().toString(),System.getProperty("user.home")+ File.separator+"Documents"+File.separator+"file.txt");
-            fs.store(fs.getPathToStorage().toString(),System.getProperty("user.home")+ File.separator+"Documents"+File.separator+"file.txt",System.getProperty("user.home")+ File.separator+"Documents"+ File.separator+"file2.txt",System.getProperty("user.home")+ File.separator+"Documents"+File.separator+"file3.txt");
-            fs.retrieve(fs.getPathToStorage().toString()+File.separator+"file.txt");
-            fs.delete(fs.getPathToStorage().toString()+File.separator+"file.txt");
-
-    }
 
     @Override
     public String toString() {
