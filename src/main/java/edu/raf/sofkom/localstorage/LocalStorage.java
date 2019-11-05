@@ -1,228 +1,137 @@
 package edu.raf.sofkom.localstorage;
 
 import edu.raf.sofkom.FileStorage;
-import edu.raf.sofkom.NoUserException;
-import edu.raf.sofkom.PrivilegeException;
-import edu.raf.sofkom.model.Privilege;
-import edu.raf.sofkom.model.User;
+import edu.raf.sofkom.privileges.Privilege;
+import edu.raf.sofkom.privileges.PrivilegeException;
 
 
 import java.io.*;
 import java.nio.file.*;
 
+@SuppressWarnings("unused")
 public class LocalStorage extends FileStorage  implements Serializable  {
 
     private static final long serialVersionUID = 1L;
 
-    public LocalStorage(){
-        super();
-    }
-
-    public LocalStorage(String userName,String password) {
-        super(userName,password);
-    }
-
 
     @Override
-    public boolean init(String pathToStorageStr) throws FileAlreadyExistsException {
-        Path path = Paths.get(pathToStorageStr);
-        Path storagePath = path.resolve("sofkom-storage");
-        Path downloadsPath = Paths.get(System.getProperty("user.home"),"storage-downloads");
+    public void init(String pathToParent,String storageName) throws IOException {
 
-        if(Files.exists(storagePath) || Files.exists(downloadsPath) ){
-            return false;
+        Path toStorage = Paths.get(pathToParent,storageName);
+        this.setPathToStorage(mkdir(toStorage.toString()));
+       this.setPathToDownloads(mkdir(toStorage.toFile().getParent()+File.separator+storageName+"-downloads"));
+    }
+
+    public void init(Path pathToStorage,String storageName) throws IOException {
+        init(pathToStorage.toString(),storageName);
+    }
+
+    @Override
+    public boolean store(String to, String from) throws PrivilegeException, IOException {
+        return store(Paths.get(to),Paths.get(from));
+    }
+
+    @Override
+    public boolean store(String to, String... from) throws PrivilegeException, IOException {
+        for(String s:from){
+            store(to,s);
         }
+        return true;
+    }
 
-        try {
+    @Override
+    public boolean store(Path to, Path from) throws PrivilegeException, IOException {
 
-            Files.createDirectory(storagePath);
-            setPathToStorage(storagePath.toString()/**/);
-        } catch (IOException e) {
-            throw new FileAlreadyExistsException(storagePath.toString());
-        }
+        if(!getStorageUsers().getCurrentUser().checkPrivilege(Privilege.S) && !getStorageUsers().ifSuperUser())
+            throw new PrivilegeException("No required privilege.");
 
-        try {
-            if(Files.exists(downloadsPath)){
-                return false;
+        else if(!(getStorageUsers().getCurrentUser() == null)) {
+
+            System.out.println("Files.exists(to):"+Files.exists(toStoragePath(to).resolve(from))+"-"+toStoragePath(to).resolve(from).toString());
+            System.out.println("Files.exists(from):"+Files.exists(from)+"-"+from.toString());
+            String finalTo = Paths.get(toStoragePath(to).toString(),from.toString()).normalize().toString();
+            System.out.println(finalTo);
+            //String finalFrom = Paths.get()
+            if (!Files.exists(toStoragePath(to).resolve(from))) {
+                if (Files.exists(from)) {
+                    System.out.println("******:"+from.normalize().toString()+toStoragePath(to).toString());
+                    Files.copy(from.normalize(), Paths.get(finalTo),StandardCopyOption.REPLACE_EXISTING);
+                    return true;
+                }
+                throw new FileNotFoundException(from.toString());
             }
-            Files.createDirectory(downloadsPath);
-            setPathToDownloads(downloadsPath.toString()/**/);
-
-        } catch (IOException e) {
-            throw new FileAlreadyExistsException(downloadsPath.toString());
+            throw new FileAlreadyExistsException(to.toString());
         }
-
-        return true;
-
+        return false;
     }
 
     @Override
-    public boolean store(String toStorage, String filePath) throws PrivilegeException, NoUserException {
-        if(getCurrentUser() == null)
-            throw new NoUserException("No current user") ;
-
-        if(!getCurrentUser().checkPrivilege(Privilege.S)) {
-            throw new PrivilegeException(getCurrentUser().getUserName() + " have no permission.");
+    public boolean store(Path to, Path... from) throws IOException, PrivilegeException {
+        for(Path p : from){
+            store(to,p);
         }
-        store(Paths.get(toStorage),Paths.get(filePath));
-        return true;
-    }
-
-
-    @Override
-    public boolean store(String toStorage, String... filePaths) throws PrivilegeException,NoUserException {
-
-        for(String filePath:filePaths)
-             store(Paths.get(toStorage),Paths.get(filePath));
         return true;
     }
 
     @Override
-    public boolean store(Path toStorage, Path filePath) throws PrivilegeException,NoUserException {
-        if(getCurrentUser() == null)
-            throw new NoUserException("No current user") ;
-
-        if(!getCurrentUser().checkPrivilege(Privilege.S)) {
-            throw new PrivilegeException(getCurrentUser().getUserName() + " have no permission.");
-        }
-
-        try {
-
-            Path fileabs = filePath.toAbsolutePath();
-            Path storerel=storageRelativePath(filePath);
-            Files.copy(fileabs,storerel,StandardCopyOption.REPLACE_EXISTING);
-
-        }
-        catch (IOException e) {
-            System.out.println("io");
-            e.printStackTrace();
-            //TODO store IOE?
-        }
-
-        return true;
-    }
-    @Override
-    public boolean store(Path toStorage, Path... filePaths) throws PrivilegeException,NoUserException {
-
-        for (Path filePath:filePaths) {
-            store(toStorage,filePath);
-        }
-        return true;
-
-    }
-    @Override
-    public boolean retrieve(String from) throws PrivilegeException,NoUserException{
-
-        if(getCurrentUser() == null)
-            throw new NoUserException("No current user") ;
-
-        if(!getCurrentUser().checkPrivilege(Privilege.S)) {
-            throw new PrivilegeException(getCurrentUser().getUserName() + "no" +Privilege.S.toString()+"permission.");
-        }
-
-
-
-        try {
-            if(!Files.exists(Paths.get(getPathToDownloads()).resolve(Paths.get(from).getFileName()))) {
-                Files.copy(Paths.get(from).toAbsolutePath(), Paths.get(getPathToDownloads()/**/).resolve(Paths.get(from).getFileName()));
-                return true;
-            }
-        }
-        catch (FileNotFoundException fnfe){
-            System.err.println("fnf");
-        }
-        catch (IOException e) {
-
-           System.err.println("Ioex: retrieve");
-            //TODO retrieve IOE
-        }
-        return true;
-
+    public boolean retrieve(String from) throws PrivilegeException, IOException {
+        return retrieve(Paths.get(from));
     }
 
     @Override
-    public boolean delete(String toDelete) throws PrivilegeException,NoUserException{
-        return delete(Paths.get(toDelete));
-    }
-    @Override
-    public boolean delete(Path toDelete) throws PrivilegeException,NoUserException{
+    public boolean retrieve(Path from) throws PrivilegeException, IOException {
+        if(!getStorageUsers().getCurrentUser().checkPrivilege(Privilege.R) && !getStorageUsers().ifSuperUser())
+            throw new PrivilegeException("No required privilege.");
 
-        if(getCurrentUser() == null)
-            throw new NoUserException("No current user") ;
-
-        if(!getCurrentUser().checkPrivilege(Privilege.D)) {
-            throw new PrivilegeException(getCurrentUser().getUserName() + "no" +Privilege.S.toString()+"permission.");
+        if(Files.exists(from)){
+            Files.copy(from, Paths.get(getPathToDownloads(),from.toFile().getName()));
+            return true;
         }
-
-        try {
-            Files.delete(toDelete);
-        } catch (IOException e) {
-            System.err.println("delete IOex");
-        }
-        return true;
+        throw new FileNotFoundException(from.toString()+File.separator+from.toFile().getName());
     }
-
-
-    protected boolean stateSave() throws IOException {
-
-            Path stateFile = Paths.get(getPathToStorage(),"state.txt");
-            if(Files.exists(stateFile)){
-                Files.delete(stateFile);
-            }
-
-            FileOutputStream f = new FileOutputStream(new File(getPathToStorage()+File.separator+"state.txt"));
-            ObjectOutputStream o = new ObjectOutputStream(f);
-
-            // Write objects to file
-            o.writeObject(this);
-
-            o.close();
-            f.close();
-
-
-        return true;
-
-    }
-
-    protected LocalStorage stateLoad(Path from) throws IOException, ClassNotFoundException {
-        return   stateLoad(from.toString());
-    }
-
-    private LocalStorage stateLoad(String from) throws ClassNotFoundException, IOException {
-        LocalStorage ls = new LocalStorage();
-
-            FileInputStream fi = new FileInputStream(new File(from));
-            ObjectInputStream oi = new ObjectInputStream(fi);
-            // Read objects
-
-
-            ls = (LocalStorage)oi.readObject();
-
-            oi.close();
-            fi.close();
-
-        return ls;
-
-    }
-
-    public boolean connect(String userName,String password, String pathToStorage) throws IOException, ClassNotFoundException {
-        if(!getUsers().containsKey(userName))
-            if(!getUsers().get(userName).getPassword().equals(password))
-                return false;
-        stateLoad(Paths.get(pathToStorage,"state.txt"));
-        this.setCurrentUser(new User(userName,password));
-        return true;
-    }
-
-    public void disconnect(Path pathToStorage) throws IOException, ClassNotFoundException {
-        setCurrentUser(null);
-        stateSave();
-    }
-
 
     @Override
-    public String toString() {
-        return super.toString();
+    public boolean delete(String path) throws PrivilegeException, IOException {
+
+        return delete(Paths.get(path));
     }
+
+    @Override
+    public boolean delete(Path path) throws PrivilegeException, IOException {
+        if(!getStorageUsers().getCurrentUser().checkPrivilege(Privilege.D) && !getStorageUsers().ifSuperUser())
+            throw new PrivilegeException("No required privilege.");
+
+
+        if(Files.exists(path)) {
+            Files.delete(path);
+            return true;
+        }
+            throw new FileNotFoundException(path.toString());
+
+    }
+
+    public String mkdir(String atPath) throws IOException {
+
+        if(atPath == null) {
+            return mkdir("");
+        }
+
+        if(Files.notExists(Paths.get(atPath))) {
+            Files.createDirectory(Paths.get(atPath));
+            return atPath;
+        }
+
+        char c = atPath.charAt(atPath.length()-1);
+
+        return Character.isDigit(c)
+                ?
+                mkdir(atPath.substring(0,atPath.length()-1)+Integer.toString(Character.getNumericValue(c)+1))
+                :
+                mkdir(atPath+Integer.toString(1));
+        
+    }
+
+
+
 }
 
