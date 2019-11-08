@@ -1,6 +1,7 @@
 package edu.raf.sofkom.localstorage;
 
 import edu.raf.sofkom.FileStorage;
+import edu.raf.sofkom.UnsuportedTypeException;
 import edu.raf.sofkom.privileges.Privilege;
 import edu.raf.sofkom.privileges.PrivilegeException;
 
@@ -14,12 +15,13 @@ public class LocalStorage extends FileStorage  implements Serializable  {
     private static final long serialVersionUID = 1L;
 
 
+
     @Override
     public void init(String pathToParent,String storageName) throws IOException {
 
         Path toStorage = Paths.get(pathToParent,storageName);
         this.setPathToStorage(mkdir(toStorage.toString()));
-       this.setPathToDownloads(mkdir(toStorage.toFile().getParent()+File.separator+storageName+"-downloads"));
+        this.setPathToDownloads(mkdir(toStorage.toFile().getParent()+File.separator+storageName+"-downloads"));
     }
 
     public void init(Path pathToStorage,String storageName) throws IOException {
@@ -27,12 +29,12 @@ public class LocalStorage extends FileStorage  implements Serializable  {
     }
 
     @Override
-    public boolean store(String to, String from) throws PrivilegeException, IOException {
+    public boolean store(String to, String from) throws PrivilegeException, IOException, UnsuportedTypeException {
         return store(Paths.get(to),Paths.get(from));
     }
 
     @Override
-    public boolean store(String to, String... from) throws PrivilegeException, IOException {
+    public boolean store(String to, String... from) throws PrivilegeException, IOException, UnsuportedTypeException {
         for(String s:from){
             store(to,s);
         }
@@ -40,10 +42,13 @@ public class LocalStorage extends FileStorage  implements Serializable  {
     }
 
     @Override
-    public boolean store(Path to, Path from) throws PrivilegeException, IOException {
+    public boolean store(Path to, Path from) throws PrivilegeException, IOException, UnsuportedTypeException {
 
         if(!getStorageUsers().getCurrentUser().checkPrivilege(Privilege.S) && !getStorageUsers().ifSuperUser())
             throw new PrivilegeException("No required privilege.");
+
+        if(getFiletypeRestrictions().contains(from.getFileName().toString().substring(from.getFileName().toString().lastIndexOf('.'))))
+            throw new UnsuportedTypeException("Filetype restricted.");
 
         else if(!(getStorageUsers().getCurrentUser() == null)) {
 
@@ -51,7 +56,7 @@ public class LocalStorage extends FileStorage  implements Serializable  {
             System.out.println("Files.exists(from):"+Files.exists(from)+"-"+from.toString());
             String finalTo = Paths.get(toStoragePath(to).toString(),from.toString()).normalize().toString();
             System.out.println(finalTo);
-            //String finalFrom = Paths.get()
+
             if (!Files.exists(toStoragePath(to).resolve(from))) {
                 if (Files.exists(from)) {
                     System.out.println("******:"+from.normalize().toString()+toStoragePath(to).toString());
@@ -66,7 +71,7 @@ public class LocalStorage extends FileStorage  implements Serializable  {
     }
 
     @Override
-    public boolean store(Path to, Path... from) throws IOException, PrivilegeException {
+    public boolean store(Path to, Path... from) throws IOException, PrivilegeException, UnsuportedTypeException {
         for(Path p : from){
             store(to,p);
         }
@@ -84,7 +89,7 @@ public class LocalStorage extends FileStorage  implements Serializable  {
             throw new PrivilegeException("No required privilege.");
 
         if(Files.exists(from)){
-            Files.copy(from, Paths.get(getPathToDownloads(),from.toFile().getName()));
+            Files.copy(toStoragePath(from), Paths.get(getPathToDownloads(),from.toFile().getName()));
             return true;
         }
         throw new FileNotFoundException(from.toString()+File.separator+from.toFile().getName());
@@ -110,6 +115,8 @@ public class LocalStorage extends FileStorage  implements Serializable  {
 
     }
 
+
+
     public String mkdir(String atPath) throws IOException {
 
         if(atPath == null) {
@@ -130,8 +137,6 @@ public class LocalStorage extends FileStorage  implements Serializable  {
                 mkdir(atPath+Integer.toString(1));
         
     }
-
-
 
 }
 
